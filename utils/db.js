@@ -28,6 +28,10 @@ class DBClient {
   async usersCollection() {
     return this.client.db().collection('users');
   }
+
+  async filesCollection() {
+    return this.client.db().collection('files');
+  }
 }
 
 const dbClient = new DBClient();

@@ -19,7 +19,6 @@ class UsersController {
     if (!token) return res.status(401).send({ error: 'Unauthorized' });
     const userId = await redisClient.get(`auth_${token}`);
     if (!userId) return res.status(401).send({ error: 'Unauthorized' });
-    console.log(userId);
     const user = await (await dbClient.usersCollection('users')).findOne({ _id: ObjectId(userId) });
     if (!user) return res.status(401).send({ error: 'Unauthorized' });
     return res.status(200).send({ id: user._id, email: user.email });
