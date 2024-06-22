@@ -141,6 +141,20 @@ class FilesController {
       parentId: file.parentId,
     });
   }
+
+  static async getFile(req, res) {
+    const fileId = req.params.id;
+    const token = req.header('X-Token');
+    const userId = await redisClient.get(`auth_${token}`);
+    if (!userId) return res.status(401).send({ error: 'Unauthorized' });
+    const file = await (await dbClient.filesCollection('files')).findOne({
+      _id: ObjectId(fileId),
+    });
+    if (!file) return res.status(404).send({ error: 'Not found' });
+    if (file.userId.toString() !== userId) return res.status(404).send({ error: 'Not found' });
+    if (file.type !== 'file') return res.status(400).send({ error: 'Not a file' });
+    return res.status(200).send(fs.readFileSync(file.localPath));
+  }
 }
 
 export default FilesController;
