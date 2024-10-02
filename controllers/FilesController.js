@@ -1,8 +1,9 @@
-import fs from 'fs';
+import fs, { readFileSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+import { contentType } from 'mime-types';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 
@@ -89,7 +90,6 @@ class FilesController {
     const userId = await redisClient.get(`auth_${token}`);
     if (!userId) return res.status(401).send({ error: 'Unauthorized' });
     const parentId = req.query.parentId || 0;
-    console.log(parentId);
     const files = await (await dbClient.filesCollection('files')).find({
       userId: ObjectId(userId),
       parentId: parentId ? ObjectId(parentId) : 0,
@@ -155,14 +155,24 @@ class FilesController {
     const fileId = req.params.id;
     const token = req.header('X-Token');
     const userId = await redisClient.get(`auth_${token}`);
-    if (!userId) return res.status(401).send({ error: 'Unauthorized' });
+    // if not public and user not authenticated return 404 Not found
     const file = await (await dbClient.filesCollection('files')).findOne({
       _id: ObjectId(fileId),
     });
     if (!file) return res.status(404).send({ error: 'Not found' });
+    if (!file.isPublic && !userId) return res.status(404).send({ error: 'Not found' });
+    if (file.type !== 'file') return res.status(400).send({ error: 'A folder doesn\'t have content' });
     if (file.userId.toString() !== userId) return res.status(404).send({ error: 'Not found' });
-    if (file.type !== 'file') return res.status(400).send({ error: 'Not a file' });
-    return res.status(200).send(fs.readFileSync(file.localPath));
+    // By using the module mime-types, get the MIME-type based on the name of the file
+    // Return the content of the file with the correct MIME-typereturn file using mimetype
+    try {
+      const data = readFileSync(file.localPath);
+      const mimeType = contentType(file.name);
+      res.setHeader('Content-Type', mimeType);
+      return res.status(200).send(data);
+    } catch (error) {
+      return res.status(404).send({ error: 'Not found' });
+    }
   }
 }
 
