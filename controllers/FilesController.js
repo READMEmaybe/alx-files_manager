@@ -89,11 +89,20 @@ class FilesController {
     const userId = await redisClient.get(`auth_${token}`);
     if (!userId) return res.status(401).send({ error: 'Unauthorized' });
     const parentId = req.query.parentId || 0;
+    console.log(parentId);
     const files = await (await dbClient.filesCollection('files')).find({
       userId: ObjectId(userId),
       parentId: parentId ? ObjectId(parentId) : 0,
     }).toArray();
-    return res.status(200).send(files);
+    const modifedFiles = files.map((file) => ({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    }));
+    return res.status(200).send(modifedFiles);
   }
 
   static async putPublish(req, res) {
